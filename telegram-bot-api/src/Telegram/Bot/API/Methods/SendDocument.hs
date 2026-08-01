@@ -25,6 +25,7 @@ import Servant.Client hiding (Response)
 
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import qualified Data.ByteString.Lazy as LBS
 
 import Telegram.Bot.API.Internal.Utils
 import Telegram.Bot.API.MakingRequests
@@ -38,6 +39,11 @@ import Telegram.Bot.API.Internal.TH
 type SendDocumentContent
   = "sendDocument"
   :> MultipartForm Tmp SendDocumentRequest
+  :> Post '[JSON] (Response Message)
+
+type SendDocumentContentMem
+  = "sendDocument"
+  :> MultipartForm Mem SendDocumentRequest
   :> Post '[JSON] (Response Message)
 
 type SendDocumentLink
@@ -55,6 +61,9 @@ sendDocument r = do
     DocumentFile{} -> do
       boundary <- liftIO genBoundary
       client (Proxy @SendDocumentContent) (boundary, r)
+    DocumentFileBytes{} -> do
+      boundary <- liftIO genBoundary
+      client (Proxy @SendDocumentContentMem) (boundary, r)
     _ -> client (Proxy @SendDocumentLink) r
 
 -- | Request parameters for 'sendDocument'
@@ -90,6 +99,9 @@ pattern DocumentUrl x = MakeDocumentFile (FileUrl x)
 pattern DocumentFile :: FilePath -> ContentType -> DocumentFile
 pattern DocumentFile x y = MakeDocumentFile (InputFile x y)
 
+pattern DocumentFileBytes :: Text -> ContentType -> LBS.ByteString -> DocumentFile
+pattern DocumentFileBytes name ct bytes = MakeDocumentFile (InputFileBytes name ct bytes)
+
 
 instance ToMultipart Tmp SendDocumentRequest where
   toMultipart SendDocumentRequest{..} = MultipartData fields files where
@@ -118,6 +130,36 @@ instance ToMultipart Tmp SendDocumentRequest where
     (path, ct) = case sendDocumentDocument of
       DocumentFile path' ct' -> (path', ct')
       _ -> error "ToMultipart Tmp SendDocumentRequest: cannot use multipart for links or file ids"
+
+
+instance ToMultipart Mem SendDocumentRequest where
+  toMultipart SendDocumentRequest{..} =
+    case sendDocumentThumbnail of
+      Just _  -> error "ToMultipart Mem SendDocumentRequest: in-memory (bytes) documents do not support a FilePath thumbnail; clear sendDocumentThumbnail"
+      Nothing -> MultipartData fields files
+    where
+      fields =
+        [ Input "document" "attach://file"
+        , Input "chat_id" $ case sendDocumentChatId of
+            SomeChatId (ChatId chat_id) -> showText chat_id
+            SomeChatUsername txt -> txt
+        ] <>
+            maybe id (\t -> (Input "message_thread_id" (showText t) :)) sendDocumentMessageThreadId
+          ( maybe id (\t -> (Input "caption" t :)) sendDocumentCaption
+          $ maybe id (\t -> (Input "parse_mode" (TL.toStrict $ encodeToLazyText t) :)) sendDocumentParseMode
+          $ maybe id (\t -> (Input "caption_entities" (TL.toStrict $ encodeToLazyText t) :)) sendDocumentCaptionEntities
+          $ maybe id (\t -> (Input "disable_notification" (bool "false" "true" t) :)) sendDocumentDisableNotification
+          $ maybe id (\t -> (Input "disable_content_type_detection" (bool "false" "true" t) :)) sendDocumentDisableContentTypeDetection
+          $ maybe id (\t -> (Input "protect_content" (bool "false" "true" t) :)) sendDocumentProtectContent
+          $ maybe id (\t -> (Input "reply_to_message_id" (TL.toStrict $ encodeToLazyText t) :)) sendDocumentReplyToMessageId
+          $ maybe id (\t -> (Input "reply_parameters" (TL.toStrict $ encodeToLazyText t) :)) sendDocumentReplyParameters
+          $ maybe id (\t -> (Input "reply_markup" (TL.toStrict $ encodeToLazyText t) :)) sendDocumentReplyMarkup
+          [])
+      files = [FileData "file" name ct bytes]
+
+      (name, ct, bytes) = case sendDocumentDocument of
+        DocumentFileBytes name' ct' bytes' -> (name', ct', bytes')
+        _ -> error "ToMultipart Mem SendDocumentRequest: not an in-memory (bytes) document"
 
 
 instance ToJSON   SendDocumentRequest where toJSON = gtoJSON

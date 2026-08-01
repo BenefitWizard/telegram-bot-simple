@@ -1,5 +1,12 @@
 # telegram-bot-api
 
+## Unreleased
+
+- `sendDocument` now supports sending documents formed in memory (no file path needed):
+  - `InputFile` extended with an `InputFileBytes` constructor (filename, content-type, `LBS.ByteString`).
+  - New `DocumentFileBytes` pattern for `DocumentFile`.
+  - Added a `Mem`-backend multipart endpoint and a `ToMultipart Mem SendDocumentRequest` instance; `sendDocument` routes in-memory documents to it. An in-memory document with a `FilePath` thumbnail is rejected with a clear error (thumbnails are optional).
+
 ## 7.4.5 -- 2025-05-12
 
 - Fix `UsersShared` data type (see [#200](https://github.com/fizruk/telegram-bot-simple/pull/200)).

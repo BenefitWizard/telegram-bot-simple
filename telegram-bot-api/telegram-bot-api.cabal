@@ -253,6 +253,7 @@ library
   build-depends:
       aeson
     , base >=4.16 && <5
+    , bytestring
     , filepath
     , hashable
     , http-api-data

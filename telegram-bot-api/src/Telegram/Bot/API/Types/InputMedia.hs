@@ -15,6 +15,7 @@ import GHC.Generics (Generic)
 import Servant.Multipart.API
 import System.FilePath
 
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text.Lazy as TL
 
 import Telegram.Bot.API.Types.Common
@@ -191,12 +192,14 @@ data InputFile
   = InputFileId FileId
   | FileUrl Text
   | InputFile FilePath ContentType
+  | InputFileBytes Text ContentType LBS.ByteString
   deriving (Generic, Show)
 
 instance ToJSON InputFile where
   toJSON (InputFileId i) = toJSON i
   toJSON (FileUrl t) = toJSON t
   toJSON (InputFile f _) = toJSON ("attach://" <> pack (takeFileName f))
+  toJSON (InputFileBytes name _ _) = toJSON ("attach://" <> name)
 
 
 -- | Multipart file helper
@@ -205,6 +208,9 @@ makeFile name (InputFile path ct) (MultipartData fields files) =
   MultipartData 
     (Input name ("attach://" <> name) : fields) 
     (FileData name (pack $ takeFileName path) ct path : files)
+
+makeFile _ (InputFileBytes _ _ _) _ =
+  error "makeFile: cannot send an in-memory (bytes) file via the Tmp multipart backend"
 
 makeFile name file (MultipartData fields files) = 
   MultipartData 

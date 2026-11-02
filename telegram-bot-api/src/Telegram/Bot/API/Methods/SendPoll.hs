@@ -31,6 +31,8 @@ data SendPollRequest = SendPollRequest
   , sendPollIsAnonymous :: Maybe Bool -- ^ True, if the poll needs to be anonymous, defaults to 'True'.
   , sendPollType :: Maybe Text -- ^ Poll type, “quiz” or “regular”, defaults to “regular”.
   , sendPollAllowsMultipleAnswers :: Maybe Bool -- ^ True, if the poll allows multiple answers, ignored for polls in quiz mode, defaults to 'False'.
+  , sendPollAllowsRevoting :: Maybe Bool -- ^ Pass True if the poll allows to change chosen answer options, defaults to 'False' for quizzes and to 'True' for regular polls.
+  , sendPollShuffleOptions :: Maybe Bool -- ^ Pass True if the poll options must be shown in random order.
   , sendPollCorrectOptionId :: Maybe Int -- ^ 0-based identifier of the correct answer option, required for polls in quiz mode.
   , sendPollExplanation :: Maybe Text -- ^ Text that is shown when a user chooses an incorrect answer or taps on the lamp icon in a quiz-style poll, 0-200 characters with at most 2 line feeds after entities parsing.
   , sendPollExplanationParseMode :: Maybe ParseMode  -- ^ Send 'MarkdownV2', 'HTML' or 'Markdown' (legacy), if you want Telegram apps to show bold, italic, fixed-width text or inline URLs in your bot's message.
